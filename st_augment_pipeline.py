@@ -9,7 +9,10 @@ import tokenizers
 
 st.title("D-Labeler")
 
-
+gpt_length = st.sidebar.selectbox(
+    "GPT-2 Length",
+    (5,10,15)
+)
 user_input = st.text_area("Enter Sentence", "I went to see a movie in the theater")
 
 @st.cache(hash_funcs={tokenizers.Tokenizer: id})
@@ -49,7 +52,7 @@ input_ids = tokenizer_de2en.encode(translated_text, return_tensors="pt")
 output_ids = de2en.generate(input_ids)[0]
 augmented_text = tokenizer_de2en.decode(output_ids, skip_special_tokens=True)
 
-st.write("**Translated Sentence->**",augmented_text)
+st.write("**Back Translated Sentence->**",augmented_text)
 
 orig_split = user_input.split()
 inp_split = user_input.split()
@@ -57,48 +60,50 @@ len_input = len(user_input.split())
 rand_idx = random.randint(0,len_input-1)
 inp_split[rand_idx] = '[MASK]'
 
-rand_idx2 = random.randint(1,len_input-2)
+rand_idx_insert = random.randint(1,len_input-1)
 
-new_list = orig_split[:rand_idx2] + ['[MASK]'] + orig_split[rand_idx2:]
-new_mask_sent = ' '.join(new_list)
+new_list = orig_split[:rand_idx_insert] + ['[MASK]'] + orig_split[rand_idx_insert:]
+mask_sent_insert = ' '.join(new_list)
 
 mask_sent = ' '.join(inp_split)
-show_debug = st.sidebar.checkbox("Debug", False) #True
+# show_debug = st.sidebar.checkbox("Debug", False) #True
 show_all = st.sidebar.checkbox("Show all", False) #True
-show_detail = st.sidebar.checkbox("Show details", False)
+# show_detail = st.sidebar.checkbox("Show details", False)
 
-if show_debug:
-    st.write("Masked sentence->",mask_sent)
-    st.write("Masked insert sentence->",new_mask_sent)
+# if show_debug:
+#     st.write("Masked sentence->",mask_sent)
+#     st.write("Masked insert sentence->",mask_sent_insert)
 
 num_show =2 
 if show_all:
     num_show = 5
 
-unmask_sent = unmasker(mask_sent)
-unmask_sent2 = unmasker(new_mask_sent)
-
-bert_insert = []
-for res in unmask_sent:
-    bert_insert.append(res["sequence"])
+unmask_sent_replace = unmasker(mask_sent)
+unmask_sent_insert = unmasker(mask_sent_insert)
 
 bert_rep = []
-for res in unmask_sent2:
-    bert_rep.append(res["sequence"])
+for res in unmask_sent_replace:
+    if res["sequence"]!=user_input:
+        bert_rep.append(res["sequence"])
 
-st.write("**BERT Replace Idx->**",rand_idx,bert_insert[:num_show])
-st.write("**BERT Insert Idx->**",rand_idx2,bert_rep[:num_show])
+bert_insert = []
+for res in unmask_sent_insert:
+    
+    bert_insert.append(res["sequence"])
+
+st.write("**Random Replace ->**",orig_split[rand_idx],bert_rep[:num_show])
+st.write("**Random Insert ->**",orig_split[rand_idx_insert],bert_insert[:num_show])
 
 
-output_length = len_input + 5
+output_length = len_input + gpt_length
 gpt_sent = generator(user_input, max_length=output_length, num_return_sequences=5)
 
-st.write("**GPT2 Output->**",gpt_sent[:num_show])
+st.write("**GPT2 Augmented Sentence->**",gpt_sent[:num_show])
 
-if show_detail:
+# if show_detail:
 
-    st.write("**BERT Replace->**",unmask_sent[:num_show])
-    st.write("**BERT Insert->**",unmask_sent2[:num_show])
+#     st.write("**BERT Replace->**",unmask_sent[:num_show])
+#     st.write("**BERT Insert->**",unmask_sent2[:num_show])
 
 
 
